@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 mouse-rs = "0.4"
 rand = "0.8.5"
+crossbeam-channel = "0.5.8"
+anyhow = "1.0.72"
+ctrlc = "3.4.0"

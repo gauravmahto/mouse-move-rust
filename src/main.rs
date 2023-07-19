@@ -1,8 +1,11 @@
 use rand::Rng;
-use std::{thread, time};
+use std::time::Duration;
 
-// use mouse_rs::{types::keys::Keys, Mouse};
+use anyhow::Result;
+use crossbeam_channel::{bounded, select, tick, Receiver};
+use ctrlc;
 use mouse_rs::Mouse;
+// use mouse_rs::{types::keys::Keys, Mouse};
 
 fn move_and_press(last_mouse_pos: (i32, i32)) -> (i32, i32) {
     let mouse = Mouse::new();
@@ -28,15 +31,36 @@ fn move_and_press(last_mouse_pos: (i32, i32)) -> (i32, i32) {
     return (mouse_pos.x, mouse_pos.y);
 }
 
-fn main() {
-    println!("Program started!");
+fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
+    let (sender, receiver) = bounded(100);
+    ctrlc::set_handler(move || {
+        let _ = sender.send(());
+    })?;
 
-    let ten_secs = time::Duration::from_secs(10);
+    Ok(receiver)
+}
+
+fn main() -> Result<()> {
+    let wait_sec = 10;
+
+    let ctrl_c_events = ctrl_channel()?;
+    let ticks = tick(Duration::from_secs(wait_sec));
 
     let mut last_mouse_pos: (i32, i32) = (0, 0);
 
     loop {
-        last_mouse_pos = move_and_press(last_mouse_pos);
-        thread::sleep(ten_secs);
+        select! {
+            recv(ticks) -> _ => {
+                println!("working!");
+                last_mouse_pos = move_and_press(last_mouse_pos);
+            }
+            recv(ctrl_c_events) -> _ => {
+                println!();
+                println!("Goodbye!");
+                break;
+            }
+        }
     }
+
+    Ok(())
 }
